@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Hành Trình 100 Ngày - Thuy An</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Pacifico&display=swap" rel="stylesheet">
+    
+    <style>
+        body, html { 
+            margin: 0; 
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; 
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364); 
+            font-family: 'Inter', sans-serif; 
+            touch-action: none; /* Vô hiệu hóa vuốt trượt màn hình */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .font-pacifico { font-family: 'Pacifico', cursive; }
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.15); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.3); 
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); 
+        }
+        #game-container { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        @keyframes pulse-heart {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-heartbeat { animation: pulse-heart 1.5s infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Màn hình bắt đầu -->
+        <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center z-20 px-4">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl text-center w-full max-w-md mx-auto">
+                <h1 class="text-4xl md:text-5xl font-pacifico text-pink-300 mb-2 drop-shadow-lg">Gửi Thúy An ❤️</h1>
+                <p class="text-white text-base md:text-lg mb-6 italic">"Khoảng cách Texas - Việt Nam không xa nếu chúng ta coi nhau là tất cả."</p>
+                <p class="text-white text-sm md:text-base mb-6">Chạm vào màn hình để giúp quả cầu bay vượt đại dương, hoàn thành 100 ngày yêu nhé!</p>
+                <button id="startBtn" class="bg-gradient-to-r from-pink-500 to-red-500 text-white font-bold py-3 px-8 rounded-full text-lg md:text-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-pink-500/50 cursor-pointer">
+                    Bắt đầu bay ✈️
+                </button>
+            </div>
+        </div>
+
+        <!-- Màn hình thua cuộc -->
+        <div id="gameOverScreen" class="absolute inset-0 flex flex-col items-center justify-center z-20 hidden bg-black bg-opacity-70 px-4">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl text-center w-full max-w-sm mx-auto">
+                <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">Cầu rớt giữa biển rồi! 😅</h2>
+                <p class="text-pink-200 mb-6 text-sm md:text-base">Yêu xa khó khăn lắm, mình kiên nhẫn thử lại nha!</p>
+                <button id="restartBtn" class="bg-white text-pink-600 font-bold py-3 px-8 rounded-full text-base md:text-lg hover:bg-gray-100 active:scale-95 transition-all shadow-lg cursor-pointer">
+                    Đập lại cầu 🏸
+                </button>
+            </div>
+        </div>
+
+        <!-- Màn hình chiến thắng 100 ngày -->
+        <div id="winScreen" class="absolute inset-0 flex flex-col items-center justify-center z-30 hidden bg-gradient-to-br from-pink-900/95 to-red-900/95 px-4">
+            <div class="glass-panel p-6 md:p-8 rounded-3xl text-center w-full max-w-2xl mx-auto">
+                <h1 class="text-4xl md:text-5xl font-pacifico text-pink-300 mb-4 animate-heartbeat">Happy 100 Days! 🎉</h1>
+                <h2 class="text-xl md:text-2xl font-bold text-white mb-6">Texas ✈️ Việt Nam</h2>
+                <p class="text-white text-sm md:text-lg mb-4 leading-relaxed">
+                    Chúc mừng em đã đỡ được cú đập yêu thương xuyên lục địa này! ❤️<br>
+                    100 ngày qua chúng ta đã cùng nhau vượt qua múi giờ, khoảng cách và biết bao nhung nhớ.
+                </p>
+                <p class="text-pink-200 text-lg md:text-xl font-pacifico mt-4">Anh yêu em, Thúy An! Cảm ơn em vì đã ở đây.</p>
+            </div>
+        </div>
+
+        <!-- Bảng điểm HUD -->
+        <div id="hud" class="absolute top-6 left-1/2 transform -translate-x-1/2 z-10 hidden pointer-events-none w-full max-w-md px-4 flex justify-between items-center">
+            <div class="text-white/70 text-xs md:text-sm font-bold bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm">📍 Texas</div>
+            <div class="glass-panel px-6 py-2 rounded-full text-white font-bold text-lg md:text-xl shadow-lg border-pink-400/50" id="scoreText">0 / 100 Ngày</div>
+            <div class="text-white/70 text-xs md:text-sm font-bold bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm">Việt Nam 📍</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas ? canvas.getContext('2d') : null;
+        
+        // Cấu hình các nút bấm và màn hình
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const winScreen = document.getElementById('winScreen');
+        const hud = document.getElementById('hud');
+        const scoreText = document.getElementById('scoreText');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        let frames = 0, isPlaying = false, score = 0, animationId;
+        const targetScore = 100; 
+
+        // ==========================================
+        // HỆ THỐNG ÂM THANH (Bảo mật tối đa trên Mobile)
+        // ==========================================
+        let bgmSynth, sfxSynth, winSynth, bgmLoop;
+        let audioInitialized = false;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+            try {
+                // Nhạc nền (Êm dịu, rải nốt liên tục)
+                bgmSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.5, decay: 0.5, sustain: 0.5, release: 1 }
+                }).toDestination();
+                bgmSynth.volume.value = -12;
+
+                // Âm thanh vượt qua cột (Vui nhộn)
+                sfxSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.05, decay: 0.1, sustain: 0.1, release: 0.5 }
+                }).toDestination();
+                sfxSynth.volume.value = -8;
+
+                // Âm thanh chiến thắng
+                winSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 1.5 }
+                }).toDestination();
+                winSynth.volume.value = -6;
+
+                // Tạo vòng lặp nhạc nền
+                const chords = [
+                    ["C4", "E4", "G4"], 
+                    ["F3", "A3", "C4"], 
+                    ["G3", "B3", "D4"], 
+                    ["C4", "E4", "G4"]
+                ];
+                let chordIndex = 0;
+                
+                bgmLoop = new Tone.Loop((time) => {
+                    let chord = chords[chordIndex];
+                    bgmSynth.triggerAttackRelease(chord[0], "8n", time);
+                    bgmSynth.triggerAttackRelease(chord[1], "8n", time + 0.25);
+                    bgmSynth.triggerAttackRelease(chord[2], "8n", time + 0.5);
+                    chordIndex = (chordIndex + 1) % chords.length;
+                }, "1m");
+                
+                Tone.Transport.bpm.value = 85; 
+                audioInitialized = true;
+            } catch(e) {
+                console.warn("Lỗi khởi tạo âm thanh (trình duyệt có thể đã chặn):", e);
+            }
+        }
+
+        function playPassSFX() {
+            try {
+                if (sfxSynth && Tone.context.state === 'running') {
+                    const now = Tone.now();
+                    sfxSynth.triggerAttackRelease("E5", "32n", now);
+                    sfxSynth.triggerAttackRelease("G5", "32n", now + 0.1);
+                    sfxSynth.triggerAttackRelease("C6", "16n", now + 0.2);
+                }
+            } catch(e){}
+        }
+
+        function playRomanticMelody() {
+            try {
+                if (winSynth && Tone.context.state === 'running') {
+                    const now = Tone.now();
+                    const notes = [
+                        { note: "C4", time: 0 }, { note: "E4", time: 0.25 }, { note: "G4", time: 0.5 }, { note: "B4", time: 0.75 },
+                        { note: "D5", time: 1.0 }, { note: "C5", time: 1.5 }, { note: "G4", time: 2.0 },
+                        { note: "E4", time: 2.5 }, { note: "F4", time: 3.0 }, { note: "A4", time: 3.25 },
+                        { note: "C5", time: 3.5 }, { note: "E5", time: 3.75 }, { note: "G5", time: 4.0 }
+                    ];
+                    notes.forEach(n => winSynth.triggerAttackRelease(n.note, "8n", now + n.time));
+                    winSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "2m", now + 4.5);
+                }
+            } catch(e){}
+        }
+
+        // ==========================================
+        // LOGIC KÍCH THƯỚC & VẼ GAME
+        // ==========================================
+        function resize() {
+            if(canvas) {
+                // Sử dụng kích thước thực tế của vùng chứa để an toàn trên mobile
+                canvas.width = document.getElementById('game-container').clientWidth;
+                canvas.height = document.getElementById('game-container').clientHeight;
+            }
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const bgHearts = {
+            list: [],
+            init() {
+                this.list = [];
+                for(let i=0; i<15; i++) {
+                    this.list.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 15 + 10,
+                        speed: Math.random() * 1 + 0.5,
+                        opacity: Math.random() * 0.3 + 0.1
+                    });
+                }
+            },
+            draw() {
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                this.list.forEach(heart => {
+                    heart.y -= heart.speed;
+                    if(heart.y < -20) {
+                        heart.y = canvas.height + 20;
+                        heart.x = Math.random() * canvas.width;
+                    }
+                    ctx.fillStyle = `rgba(255, 105, 180, ${heart.opacity})`;
+                    ctx.font = `${heart.size}px Arial`;
+                    ctx.fillText("❤️", heart.x, heart.y);
+                });
+            }
+        };
+
+        const player = {
+            x: canvas.width < 400 ? 50 : 80, // Lùi về sau trên màn hình nhỏ
+            y: 0, velocity: 0, 
+            gravity: 0.35,  // Rơi nhẹ nhàng
+            jump: -6.5,     // Lực nảy vừa phải
+            radius: 18,
+            rotation: 0,
+            update() {
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+                this.rotation = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (this.velocity * 0.1)));
+                if (this.y + this.radius >= canvas.height || this.y - this.radius <= 0) gameOver();
+            },
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.font = "35px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("🏸", 0, 0);
+                ctx.restore();
+            },
+            flap() { this.velocity = this.jump; }
+        };
+
+        const floatingTexts = {
+            list: [],
+            add(x, y) {
+                this.list.push({ x: x, y: y, text: "+1 Ngày ❤️", alpha: 1, dy: -2 });
+            },
+            updateAndDraw() {
+                for (let i = 0; i < this.list.length; i++) {
+                    let ft = this.list[i];
+                    ft.y += ft.dy;
+                    ft.alpha -= 0.02;
+                    ctx.fillStyle = `rgba(255, 105, 180, ${Math.max(0, ft.alpha)})`;
+                    ctx.font = "bold 20px Inter";
+                    ctx.textAlign = "center";
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                    if (ft.alpha <= 0) {
+                        this.list.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+        };
+
+        const obstacleLabels = [
+            "Lệch múi giờ", "Khoảng cách xa", 
+            "Chờ tin nhắn", "Deadline ngập đầu", 
+            "Sự cô đơn", "Những lần dỗi", 
+            "Trái ngược tính cách", "Nỗi nhớ nhung"
+        ];
+
+        const obstacles = {
+            list: [],
+            dx: 2.5, // Tốc độ di chuyển chậm lại để dễ chơi
+            update() {
+                // Tần suất xuất hiện cột
+                if (frames % 120 === 0) {
+                    const minHeight = 50;
+                    // Độ rộng khe hở rất hào phóng
+                    const gap = Math.max(160, Math.min(220, canvas.height * 0.4)); 
+                    
+                    // Logic chống lỗi âm (Anti-crash logic cho Mobile)
+                    const maxTop = Math.max(minHeight + 10, canvas.height - gap - minHeight);
+                    const topHeight = Math.floor(Math.random() * (maxTop - minHeight)) + minHeight;
+                    
+                    const label = obstacleLabels[Math.floor(Math.random() * obstacleLabels.length)];
+                    this.list.push({ x: canvas.width, top: topHeight, gap: gap, passed: false, label: label });
+                }
+
+                for (let i = 0; i < this.list.length; i++) {
+                    let obs = this.list[i];
+                    obs.x -= this.dx;
+
+                    // Kiểm tra va chạm (hitbox được thu nhỏ để "ăn gian" giúp người chơi)
+                    const buffer = 10;
+                    if (player.x + player.radius - buffer > obs.x && player.x - player.radius + buffer < obs.x + 50) {
+                        if (player.y - player.radius + buffer < obs.top || player.y + player.radius - buffer > obs.top + obs.gap) {
+                            gameOver();
+                        }
+                    }
+
+                    // Cộng đúng 1 điểm khi vượt qua
+                    if (obs.x + 50 < player.x && !obs.passed) {
+                        score += 1;
+                        obs.passed = true;
+                        scoreText.innerText = `${score} / 100 Ngày`;
+                        floatingTexts.add(player.x + 20, player.y);
+                        playPassSFX();
+                        if (score >= targetScore) gameWin();
+                    }
+                    
+                    if (obs.x + 50 < 0) {
+                        this.list.splice(i, 1);
+                        i--;
+                    }
+                }
+            },
+            draw() {
+                this.list.forEach(obs => {
+                    const colWidth = 50;
+                    const bottomY = obs.top + obs.gap;
+                    // Bảo vệ để chiều cao cột dưới không bao giờ bị âm
+                    const bottomHeight = Math.max(0, canvas.height - bottomY);
+
+                    ctx.fillStyle = "rgba(255, 105, 180, 0.4)";
+                    ctx.fillRect(obs.x, 0, colWidth, obs.top);
+                    if (bottomHeight > 0) ctx.fillRect(obs.x, bottomY, colWidth, bottomHeight);
+                    
+                    ctx.strokeStyle = "rgba(255, 192, 203, 0.8)";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(obs.x, 0, colWidth, obs.top);
+                    if (bottomHeight > 0) ctx.strokeRect(obs.x, bottomY, colWidth, bottomHeight);
+
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                    ctx.font = "bold 13px Inter";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    
+                    ctx.save();
+                    ctx.translate(obs.x + (colWidth/2), Math.max(30, obs.top / 2));
+                    ctx.rotate(-Math.PI / 2); 
+                    ctx.fillText(obs.label, 0, 0);
+                    ctx.restore();
+                });
+            }
+        };
+
+        function gameLoop() {
+            if (!isPlaying) return;
+            // Đưa việc gọi requestAnimationFrame ra ngoài try-catch để dù có lỗi 1 frame, game vẫn KHÔNG dừng!
+            try {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                bgHearts.draw();
+                obstacles.update();
+                obstacles.draw();
+                player.update();
+                player.draw();
+                floatingTexts.updateAndDraw();
+            } catch (e) { 
+                console.error("Lỗi vẽ frame (Đã tự động bỏ qua):", e); 
+            }
+            frames++;
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // Tách biệt việc "Chơi game" và "Bật âm thanh" để dù âm thanh lỗi, game vẫn chạy.
+        function startVisualGame() {
+            resize(); // Cập nhật lại kích thước trước khi chơi
+            score = 0; 
+            frames = 0;
+            player.y = canvas.height / 2;
+            player.velocity = 0;
+            obstacles.list = [];
+            floatingTexts.list = [];
+            bgHearts.init();
+            
+            scoreText.innerText = "0 / 100 Ngày";
+            
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            winScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            
+            isPlaying = true;
+            gameLoop();
+        }
+
+        function initAndStartGame(e) {
+            if(e) e.preventDefault();
+            
+            // Xử lý Audio một cách đồng bộ (Synchronous) để lách luật Mobile Safari
+            try {
+                if (typeof Tone !== 'undefined') {
+                    Tone.start().then(() => {
+                        return initAudio();
+                    }).then(() => {
+                        Tone.Transport.start(); 
+                        if (bgmLoop) bgmLoop.start(0);
+                    }).catch(err => console.log("Không thể phát nhạc nền:", err));
+                }
+            } catch(e) {}
+            
+            // Khởi động giao diện game lập tức
+            startVisualGame();
+        }
+
+        function gameOver() { 
+            isPlaying = false; 
+            cancelAnimationFrame(animationId); 
+            gameOverScreen.classList.remove('hidden'); 
+            try { Tone.Transport.stop(); } catch(e){}
+        }
+        
+        function gameWin() { 
+            isPlaying = false; 
+            cancelAnimationFrame(animationId); 
+            hud.classList.add('hidden');
+            winScreen.classList.remove('hidden'); 
+            
+            try { Tone.Transport.stop(); } catch(e){}
+            playRomanticMelody();
+            
+            // Pháo hoa trái tim chiến thắng
+            for(let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    if(!isPlaying) {
+                        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                        ctx.font = `${Math.random() * 30 + 10}px Arial`;
+                        ctx.fillText("❤️", Math.random() * canvas.width, Math.random() * canvas.height);
+                    }
+                }, i * 100);
+            }
+        }
+
+        // Khai báo sự kiện lên Nút Bấm bằng nhiều cách để ăn chắc 100% trên thiết bị cảm ứng
+        startBtn.addEventListener('click', initAndStartGame);
+        startBtn.addEventListener('touchstart', initAndStartGame, {passive: false});
+        
+        restartBtn.addEventListener('click', initAndStartGame);
+        restartBtn.addEventListener('touchstart', initAndStartGame, {passive: false});
+        
+        // SỰ KIỆN BAY LÊN - Chỉ gắn vào Canvas để không đụng chạm với nút bấm!
+        canvas.addEventListener('mousedown', (e) => { 
+            if(isPlaying) player.flap(); 
+        });
+        canvas.addEventListener('touchstart', (e) => { 
+            if(isPlaying) {
+                e.preventDefault(); // Ngăn cuộn màn hình trên mobile khi đang tap
+                player.flap(); 
+            }
+        }, {passive: false});
+        
+        window.addEventListener('keydown', (e) => { 
+            if(e.code === 'Space' && isPlaying) player.flap(); 
+        });
+    </script>
+</body>
+</html>
